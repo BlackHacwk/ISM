@@ -1,126 +1,57 @@
-# Mechanical Engineering Q&A Site
+# Mechanical Engineer Q&A Site with Multi-Engineer Review Queue
 
-This version is ready to deploy so other people can use it on the web.
+This site answers user questions with AI, logs every question as a ticket, and lets multiple engineers from different disciplines review and respond through a protected dashboard.
 
-## What changed
+## Features
+- Public question form with AI-generated answers
+- Every question saved with a ticket ID
+- Engineer dashboard at `/engineer`
+- Multiple engineer accounts with separate access keys
+- Engineer field tracking for replies
+- Queue filter by engineering discipline
+- Clear-all queue button with confirmation
 
-- Works locally or on a public host
-- Uses the OpenAI API from the server so your API key stays private
-- Includes a health check endpoint for hosting platforms
-- Includes `render.yaml` for quick Render deployment
-- Includes a `Dockerfile` so you can deploy on many other platforms too
-
-## Local use
-
-### 1) Install dependencies
-
-```bash
-npm install
-```
-
-### 2) Add your API key
-
-Copy `.env.example` to `.env` and add your real key:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env`:
+## Environment variables
+Create a `.env` file locally or add these in Render:
 
 ```env
-OPENAI_API_KEY=your_real_key_here
+OPENAI_API_KEY=sk-your-key-here
 OPENAI_MODEL=gpt-5.4
-PORT=3000
+ENGINEER_PORTAL_USERS=Alex Rivera|Mechanical Engineering|mech-key-123;Priya Shah|Electrical Engineering|electrical-key-456;Jordan Lee|Civil Engineering|civil-key-789
 ```
 
-### 3) Start the site
+### Multi-engineer setup format
+Use this pattern:
 
+```text
+Name|Engineering Field|AccessKey;Name|Engineering Field|AccessKey
+```
+
+Example:
+
+```text
+Taylor Moss|Mechanical Engineering|mech-team-2026;Sam Patel|Chemical Engineering|chem-team-2026
+```
+
+If `ENGINEER_PORTAL_USERS` is not set, the app will fall back to the older single shared key using `ENGINEER_PORTAL_KEY`.
+
+## Run locally
 ```bash
+npm install
 npm start
 ```
 
 Open:
+- Main site: `http://localhost:3000`
+- Engineer dashboard: `http://localhost:3000/engineer`
 
-```text
-http://localhost:3000
-```
+## Render deploy
+1. Push the project to GitHub
+2. Create a new Render Blueprint or Web Service
+3. Add `OPENAI_API_KEY`
+4. Add `ENGINEER_PORTAL_USERS`
+5. Deploy
 
-## Deploy publicly on Render
-
-### Option A: GitHub + Render
-
-1. Upload this project to a GitHub repository
-2. Create a Render account
-3. Choose **New +** → **Blueprint** or **Web Service**
-4. Connect your GitHub repository
-5. Set this environment variable in Render:
-
-```text
-OPENAI_API_KEY=your_real_key_here
-```
-
-6. Deploy
-
-Render will use `render.yaml` or the Node settings below:
-
-- Build command: `npm install`
-- Start command: `npm start`
-
-After deployment, Render gives you a public URL like:
-
-```text
-https://your-app-name.onrender.com
-```
-
-## Deploy with Docker
-
-Build:
-
-```bash
-docker build -t mech-engineer-qa-site .
-```
-
-Run:
-
-```bash
-docker run -p 3000:3000 -e OPENAI_API_KEY=your_real_key_here mech-engineer-qa-site
-```
-
-## Important notes
-
-- Do **not** put your API key in `script.js` or `index.html`
-- Do **not** commit your real `.env` file to GitHub
-- Public users can use the site, but your OpenAI API account is billed for their usage
-- For a real public launch, add rate limiting, authentication, and abuse protection
-
-## Suggested next improvements
-
-- Add chat history
-- Format answers as markdown
-- Add equation rendering
-- Add usage limits per IP or per user
-- Add admin analytics
-
-
-## Engineer review queue
-
-This version logs every submitted question to `data/questions.json` and gives the user a ticket ID.
-
-### New routes
-- `GET /engineer` - engineer dashboard
-- `GET /api/questions` - list logged questions
-- `GET /api/questions/:id` - look up a ticket
-- `POST /api/questions/:id/reply` - save an engineer answer
-
-### Optional protection
-Set this environment variable to protect the dashboard and write APIs:
-
-```bash
-ENGINEER_PORTAL_KEY=your-secret-key
-```
-
-When set, the engineer dashboard will ask for that key before it can load or save tickets.
-
-### Important note for Render
-The included logging uses a local JSON file for simplicity. On platforms with ephemeral storage, old tickets can be lost during redeploys or restarts. For production, switch the queue to a database like PostgreSQL, Supabase, or Firebase.
+## Important storage note
+Tickets are stored in `data/questions.json`.
+On Render free or basic deployments, local file storage may reset after restarts or redeploys. For permanent storage, move the queue to a database.

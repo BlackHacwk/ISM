@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 const apiKey = process.env.OPENAI_API_KEY;
 const model = process.env.OPENAI_MODEL || 'gpt-5.4';
 const engineerPortalKey = process.env.ENGINEER_PORTAL_KEY || '';
+const engineerPortalUsers = process.env.ENGINEER_PORTAL_USERS || '';
 const client = apiKey ? new OpenAI({ apiKey }) : null;
 
 const dataDir = path.join(__dirname, 'data');
@@ -61,6 +62,56 @@ function createTicketId() {
   return `ME-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }
 
+function normalizeFieldLabel(value) {
+  const raw = String(value || '').trim();
+  return raw || 'General Engineering';
+}
+
+function parseEngineerUsers() {
+  if (!engineerPortalUsers.trim()) {
+    return [];
+  }
+
+  return engineerPortalUsers
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [name, field, key] = entry.split('|').map((part) => String(part || '').trim());
+      if (!key) {
+        return null;
+      }
+
+      return {
+        name: name || 'Engineer',
+        field: normalizeFieldLabel(field),
+        key
+      };
+    })
+    .filter(Boolean);
+}
+
+function getAllowedEngineers() {
+  const multiUsers = parseEngineerUsers();
+  if (multiUsers.length) {
+    return multiUsers;
+  }
+
+  if (engineerPortalKey) {
+    return [{ name: 'Engineer', field: 'General Engineering', key: engineerPortalKey }];
+  }
+
+  return [];
+}
+
+function getEngineerByKey(providedKey) {
+  if (!providedKey) {
+    return null;
+  }
+
+  return getAllowedEngineers().find((engineer) => engineer.key === providedKey) || null;
+}
+
 function saveQuestion({ question, difficulty, topic, aiAnswer }) {
   const records = readQuestions();
   const record = {
@@ -68,9 +119,11 @@ function saveQuestion({ question, difficulty, topic, aiAnswer }) {
     question: String(question).trim(),
     difficulty,
     topic,
+    requestedField: normalizeFieldLabel(topic),
     aiAnswer: aiAnswer || '',
     engineerAnswer: '',
     engineerName: '',
+    engineerField: '',
     status: 'pending_engineer',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -82,25 +135,45 @@ function saveQuestion({ question, difficulty, topic, aiAnswer }) {
 }
 
 function requireEngineerAuth(req, res, next) {
-  if (!engineerPortalKey) {
+  const protectedPortal = Boolean(getAllowedEngineers().length);
+
+  if (!protectedPortal) {
+    req.engineerProfile = { name: 'Open Access Engineer', field: 'General Engineering' };
     return next();
   }
 
   const providedKey = req.header('x-engineer-key');
-  if (providedKey !== engineerPortalKey) {
-    return res.status(401).send('Unauthorized engineer request.');
+  const engineer = getEngineerByKey(providedKey);
+
+  if (!engineer) {
+    return res.status(401).send('Unauthorized engineer request. Provide a valid engineer key.');
   }
 
+  req.engineerProfile = { name: engineer.name, field: engineer.field };
   next();
 }
 
 app.get('/health', (_req, res) => {
+  const engineers = getAllowedEngineers();
+
   res.json({
     ok: true,
     service: 'mech-engineer-qa-site',
     model,
     configured: Boolean(apiKey),
-    engineerPortalProtected: Boolean(engineerPortalKey)
+    engineerPortalProtected: Boolean(engineers.length),
+    engineerCount: engineers.length
+  });
+});
+
+app.get('/api/engineer-access', requireEngineerAuth, (req, res) => {
+  const engineers = getAllowedEngineers();
+  const fields = [...new Set(engineers.map((engineer) => engineer.field))];
+
+  res.json({
+    currentEngineer: req.engineerProfile,
+    engineerCount: engineers.length || 1,
+    fields: fields.length ? fields : ['General Engineering']
   });
 });
 
@@ -160,9 +233,22 @@ app.post('/api/answer', async (req, res) => {
 
 app.get('/api/questions', requireEngineerAuth, (req, res) => {
   const records = readQuestions();
-  res.json(records);
-});
+  const requestedField = String(req.query.field || '').trim().toLowerCase();
 
+  if (!requestedField || requestedField === 'all') {
+    return res.json(records);
+  }
+
+  const filtered = records.filter((record) => {
+    const values = [record.topic, record.requestedField, record.engineerField]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean);
+
+    return values.includes(requestedField);
+  });
+
+  res.json(filtered);
+});
 
 app.delete('/api/questions', requireEngineerAuth, (_req, res) => {
   writeQuestions([]);
@@ -181,7 +267,7 @@ app.get('/api/questions/:id', (req, res) => {
 });
 
 app.post('/api/questions/:id/reply', requireEngineerAuth, (req, res) => {
-  const { engineerAnswer, engineerName = 'Engineer' } = req.body || {};
+  const { engineerAnswer, engineerName = '', engineerField = '' } = req.body || {};
 
   if (!engineerAnswer || !String(engineerAnswer).trim()) {
     return res.status(400).send('Engineer answer is required.');
@@ -195,7 +281,8 @@ app.post('/api/questions/:id/reply', requireEngineerAuth, (req, res) => {
   }
 
   record.engineerAnswer = String(engineerAnswer).trim();
-  record.engineerName = String(engineerName).trim() || 'Engineer';
+  record.engineerName = String(engineerName).trim() || req.engineerProfile?.name || 'Engineer';
+  record.engineerField = normalizeFieldLabel(engineerField || req.engineerProfile?.field);
   record.status = 'answered_by_engineer';
   record.updatedAt = new Date().toISOString();
 

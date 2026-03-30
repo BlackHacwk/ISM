@@ -11,25 +11,29 @@
     <header class="hero simple-hero">
       <div>
         <p class="eyebrow">Engineer Dashboard</p>
-        <h1>Review logged questions and post engineer answers.</h1>
-        <p class="subtext">Use this page to work through the queue of submitted questions.</p>
+        <h1>Let multiple engineers review the queue by specialty.</h1>
+        <p class="subtext">Engineers can sign in with their own key and answer tickets across different engineering fields.</p>
       </div>
       <div class="hero-card">
         <div class="stat">
           <span class="stat-label">Tip</span>
-          <span class="stat-value">Set ENGINEER_PORTAL_KEY in hosting for a protected dashboard.</span>
+          <span class="stat-value">Use ENGINEER_PORTAL_USERS to assign separate keys for mechanical, civil, electrical, and more.</span>
         </div>
       </div>
     </header>
 
     <section class="panel lookup-panel engineer-auth-panel">
       <h2>Dashboard access</h2>
-      <p class="subtext compact">If you set ENGINEER_PORTAL_KEY on the server, enter it here before refreshing the queue.</p>
-      <div class="lookup-form">
-        <input id="engineerKey" type="password" placeholder="Engineer access key (optional)" />
+      <p class="subtext compact">Enter an engineer key, then filter the queue by discipline if needed.</p>
+      <div class="lookup-form engineer-toolbar">
+        <input id="engineerKey" type="password" placeholder="Engineer access key" />
+        <select id="fieldFilter">
+          <option value="all">All engineering fields</option>
+        </select>
         <button id="refreshButton" type="button">Refresh queue</button>
         <button id="clearButton" type="button" class="secondary-button danger-button">Clear all tickets</button>
       </div>
+      <p id="engineerIdentity" class="subtext compact">No engineer authenticated yet.</p>
       <p id="engineerStatus" class="subtext compact">Ready to load tickets.</p>
     </section>
 
