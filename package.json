@@ -1,0 +1,14 @@
+{
+  "name": "mech-engineer-qa-site",
+  "version": "1.1.0",
+  "description": "Mechanical engineering question and answer website",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "openai": "^6.6.0"
+  }
+}
