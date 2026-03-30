@@ -3,6 +3,7 @@ const refreshButton = document.getElementById('refreshButton');
 const engineerStatus = document.getElementById('engineerStatus');
 const ticketList = document.getElementById('ticketList');
 const queueCount = document.getElementById('queueCount');
+const clearButton = document.getElementById('clearButton');
 
 function getHeaders() {
   const key = engineerKeyInput.value.trim();
@@ -80,6 +81,19 @@ async function loadTickets() {
   }
 }
 
+async function clearAllTickets() {
+  const response = await fetch('/api/questions', {
+    method: 'DELETE',
+    headers: getHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text() || 'Failed to clear tickets.');
+  }
+
+  return response.json();
+}
+
 async function saveEngineerAnswer(ticketId, engineerName, engineerAnswer) {
   const response = await fetch(`/api/questions/${encodeURIComponent(ticketId)}/reply`, {
     method: 'POST',
@@ -127,3 +141,24 @@ ticketList.addEventListener('click', async (event) => {
 });
 
 loadTickets();
+
+
+clearButton.addEventListener('click', async () => {
+  const confirmed = window.confirm('Clear the entire engineer queue? This deletes all logged tickets.');
+  if (!confirmed) {
+    return;
+  }
+
+  clearButton.disabled = true;
+  engineerStatus.textContent = 'Clearing all tickets...';
+
+  try {
+    await clearAllTickets();
+    engineerStatus.textContent = 'All tickets cleared.';
+    await loadTickets();
+  } catch (error) {
+    engineerStatus.textContent = error.message || 'Unable to clear tickets.';
+  } finally {
+    clearButton.disabled = false;
+  }
+});

@@ -163,6 +163,12 @@ app.get('/api/questions', requireEngineerAuth, (req, res) => {
   res.json(records);
 });
 
+
+app.delete('/api/questions', requireEngineerAuth, (_req, res) => {
+  writeQuestions([]);
+  res.json({ ok: true, cleared: true });
+});
+
 app.get('/api/questions/:id', (req, res) => {
   const records = readQuestions();
   const record = records.find((item) => item.id === req.params.id);

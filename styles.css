@@ -331,3 +331,18 @@ input[type="password"] {
     display: grid;
   }
 }
+
+
+.secondary-button {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.danger-button {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.danger-button:hover {
+  filter: brightness(0.98);
+}
