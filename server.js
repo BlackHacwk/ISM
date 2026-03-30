@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const OpenAI = require('openai');
 require('dotenv').config();
 
@@ -8,12 +9,27 @@ const PORT = process.env.PORT || 3000;
 
 const apiKey = process.env.OPENAI_API_KEY;
 const model = process.env.OPENAI_MODEL || 'gpt-5.4';
-
+const engineerPortalKey = process.env.ENGINEER_PORTAL_KEY || '';
 const client = apiKey ? new OpenAI({ apiKey }) : null;
+
+const dataDir = path.join(__dirname, 'data');
+const questionsFile = path.join(dataDir, 'questions.json');
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname)));
+
+ensureStorage();
+
+function ensureStorage() {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  if (!fs.existsSync(questionsFile)) {
+    fs.writeFileSync(questionsFile, '[]\n', 'utf8');
+  }
+}
 
 function buildSystemPrompt(difficulty, topic) {
   return [
@@ -28,12 +44,63 @@ function buildSystemPrompt(difficulty, topic) {
   ].join(' ');
 }
 
+function readQuestions() {
+  try {
+    return JSON.parse(fs.readFileSync(questionsFile, 'utf8'));
+  } catch (error) {
+    console.error('Failed to read questions file:', error);
+    return [];
+  }
+}
+
+function writeQuestions(records) {
+  fs.writeFileSync(questionsFile, JSON.stringify(records, null, 2), 'utf8');
+}
+
+function createTicketId() {
+  return `ME-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+function saveQuestion({ question, difficulty, topic, aiAnswer }) {
+  const records = readQuestions();
+  const record = {
+    id: createTicketId(),
+    question: String(question).trim(),
+    difficulty,
+    topic,
+    aiAnswer: aiAnswer || '',
+    engineerAnswer: '',
+    engineerName: '',
+    status: 'pending_engineer',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  records.unshift(record);
+  writeQuestions(records);
+  return record;
+}
+
+function requireEngineerAuth(req, res, next) {
+  if (!engineerPortalKey) {
+    return next();
+  }
+
+  const providedKey = req.header('x-engineer-key');
+  if (providedKey !== engineerPortalKey) {
+    return res.status(401).send('Unauthorized engineer request.');
+  }
+
+  next();
+}
+
 app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'mech-engineer-qa-site',
     model,
-    configured: Boolean(apiKey)
+    configured: Boolean(apiKey),
+    engineerPortalProtected: Boolean(engineerPortalKey)
   });
 });
 
@@ -69,7 +136,8 @@ app.post('/api/answer', async (req, res) => {
       return res.status(502).send('The AI returned an empty answer. Please try again.');
     }
 
-    res.json({ answer, model });
+    const record = saveQuestion({ question, difficulty, topic, aiAnswer: answer });
+    res.json({ answer, model, ticketId: record.id, status: record.status });
   } catch (error) {
     console.error('OpenAI API error:', error);
 
@@ -80,8 +148,57 @@ app.post('/api/answer', async (req, res) => {
         ? 'Rate limit reached or billing is not ready yet. Please try again shortly.'
         : error?.message || 'Failed to generate an answer.';
 
-    res.status(500).send(message);
+    try {
+      const record = saveQuestion({ question, difficulty, topic, aiAnswer: '' });
+      return res.status(500).json({ error: message, ticketId: record.id, status: record.status });
+    } catch (storageError) {
+      console.error('Failed to log question after AI error:', storageError);
+      return res.status(500).send(message);
+    }
   }
+});
+
+app.get('/api/questions', requireEngineerAuth, (req, res) => {
+  const records = readQuestions();
+  res.json(records);
+});
+
+app.get('/api/questions/:id', (req, res) => {
+  const records = readQuestions();
+  const record = records.find((item) => item.id === req.params.id);
+
+  if (!record) {
+    return res.status(404).send('Ticket not found.');
+  }
+
+  res.json(record);
+});
+
+app.post('/api/questions/:id/reply', requireEngineerAuth, (req, res) => {
+  const { engineerAnswer, engineerName = 'Engineer' } = req.body || {};
+
+  if (!engineerAnswer || !String(engineerAnswer).trim()) {
+    return res.status(400).send('Engineer answer is required.');
+  }
+
+  const records = readQuestions();
+  const record = records.find((item) => item.id === req.params.id);
+
+  if (!record) {
+    return res.status(404).send('Ticket not found.');
+  }
+
+  record.engineerAnswer = String(engineerAnswer).trim();
+  record.engineerName = String(engineerName).trim() || 'Engineer';
+  record.status = 'answered_by_engineer';
+  record.updatedAt = new Date().toISOString();
+
+  writeQuestions(records);
+  res.json(record);
+});
+
+app.get('/engineer', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'engineer.html'));
 });
 
 app.get('*', (_req, res) => {

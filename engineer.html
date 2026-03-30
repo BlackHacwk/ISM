@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engineer Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero simple-hero">
+      <div>
+        <p class="eyebrow">Engineer Dashboard</p>
+        <h1>Review logged questions and post engineer answers.</h1>
+        <p class="subtext">Use this page to work through the queue of submitted questions.</p>
+      </div>
+      <div class="hero-card">
+        <div class="stat">
+          <span class="stat-label">Tip</span>
+          <span class="stat-value">Set ENGINEER_PORTAL_KEY in hosting for a protected dashboard.</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel lookup-panel engineer-auth-panel">
+      <h2>Dashboard access</h2>
+      <p class="subtext compact">If you set ENGINEER_PORTAL_KEY on the server, enter it here before refreshing the queue.</p>
+      <div class="lookup-form">
+        <input id="engineerKey" type="password" placeholder="Engineer access key (optional)" />
+        <button id="refreshButton" type="button">Refresh queue</button>
+      </div>
+      <p id="engineerStatus" class="subtext compact">Ready to load tickets.</p>
+    </section>
+
+    <section class="panel">
+      <div class="answer-header">
+        <h2>Open tickets</h2>
+        <span id="queueCount" class="badge idle">0 tickets</span>
+      </div>
+      <div id="ticketList" class="ticket-list"></div>
+    </section>
+  </div>
+
+  <script src="engineer.js"></script>
+</body>
+</html>

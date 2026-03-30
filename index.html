@@ -13,8 +13,8 @@
         <p class="eyebrow">Mechanical Engineering Q&amp;A</p>
         <h1>Ask mechanical engineering questions and get clear answers.</h1>
         <p class="subtext">
-          This demo website accepts questions about thermodynamics, fluids, materials,
-          machine design, controls, manufacturing, HVAC, and more.
+          Every question is logged with a ticket number so an engineer can review it,
+          answer it later, or add a corrected response.
         </p>
       </div>
       <div class="hero-card">
@@ -23,8 +23,8 @@
           <span class="stat-value">Thermo · Fluids · Design · Materials</span>
         </div>
         <div class="stat">
-          <span class="stat-label">Output style</span>
-          <span class="stat-value">Accurate, practical, beginner-friendly</span>
+          <span class="stat-label">Escalation</span>
+          <span class="stat-value">Each question gets saved for engineer follow-up</span>
         </div>
       </div>
     </header>
@@ -73,6 +73,12 @@
             <button type="button" id="demoButton" class="secondary">Load demo question</button>
           </div>
         </form>
+
+        <div id="ticketPanel" class="ticket-panel hidden">
+          <strong>Ticket created:</strong>
+          <span id="ticketId">—</span>
+          <p>Your question is now in the engineer review queue.</p>
+        </div>
       </section>
 
       <section class="panel answer-panel">
@@ -86,6 +92,21 @@
         </div>
       </section>
     </main>
+
+    <section class="panel lookup-panel">
+      <div class="lookup-header">
+        <div>
+          <h2>Check an engineer reply</h2>
+          <p class="subtext compact">Enter your ticket number to see whether an engineer has responded.</p>
+        </div>
+        <a class="text-link" href="/engineer">Open engineer dashboard</a>
+      </div>
+      <form id="lookupForm" class="lookup-form">
+        <input id="lookupTicket" type="text" placeholder="Example: ME-ABC123-9XYZ" />
+        <button type="submit">Check ticket</button>
+      </form>
+      <div id="lookupResult" class="answer-box empty small-box">Ticket updates will appear here.</div>
+    </section>
 
     <section class="panel examples-panel">
       <h2>Example questions</h2>

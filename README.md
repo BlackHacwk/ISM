@@ -101,3 +101,26 @@ docker run -p 3000:3000 -e OPENAI_API_KEY=your_real_key_here mech-engineer-qa-si
 - Add equation rendering
 - Add usage limits per IP or per user
 - Add admin analytics
+
+
+## Engineer review queue
+
+This version logs every submitted question to `data/questions.json` and gives the user a ticket ID.
+
+### New routes
+- `GET /engineer` - engineer dashboard
+- `GET /api/questions` - list logged questions
+- `GET /api/questions/:id` - look up a ticket
+- `POST /api/questions/:id/reply` - save an engineer answer
+
+### Optional protection
+Set this environment variable to protect the dashboard and write APIs:
+
+```bash
+ENGINEER_PORTAL_KEY=your-secret-key
+```
+
+When set, the engineer dashboard will ask for that key before it can load or save tickets.
+
+### Important note for Render
+The included logging uses a local JSON file for simplicity. On platforms with ephemeral storage, old tickets can be lost during redeploys or restarts. For production, switch the queue to a database like PostgreSQL, Supabase, or Firebase.
